@@ -3,33 +3,52 @@ import { Camera, X, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { useSosmetStore } from '../../store/sosmetStore';
 import { Niche } from '../../types/sosmet';
 
-const SAMPLE_UPLOADS = [
-  'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80'
-];
-
-const NICHES: { id: Niche; label: string }[] = [
-  { id: 'coffee', label: '☕ Kopi' },
-  { id: 'streetwear', label: '👟 Streetwear' },
-  { id: 'photography', label: '📸 Fotografi' },
-  { id: 'architecture', label: '🏛️ Arsitektur' },
-  { id: 'tech', label: '💻 Tech' },
-  { id: 'travel', label: '🌿 Travel' },
-  { id: 'minimalist', label: '🤍 Minimalis' },
-  { id: 'fitness', label: '🧘‍♀️ Fitness' },
-  { id: 'art', label: '🎨 Art' },
-  { id: 'lifestyle', label: '✨ Lifestyle' }
+const SAMPLE_POST_TYPES: { id: Niche; label: string; url: string; defaultCaption: string }[] = [
+  {
+    id: 'lifestyle',
+    label: 'Selfie Biasa',
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
+    defaultCaption: 'casual Sunday afternoon 🌤️'
+  },
+  {
+    id: 'coffee',
+    label: 'Makanan / Kopi',
+    url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80',
+    defaultCaption: 'avocado toast + iced americano 🥑☕'
+  },
+  {
+    id: 'travel',
+    label: 'Pemandangan',
+    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80',
+    defaultCaption: 'vitamin sea 🌊 clear water, clear mind'
+  },
+  {
+    id: 'streetwear',
+    label: 'Outfit',
+    url: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&auto=format&fit=crop&q=80',
+    defaultCaption: 'weekend fit check 👟 vintage oversized tee'
+  },
+  {
+    id: 'tech',
+    label: 'Foto Random / Objek',
+    url: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80',
+    defaultCaption: 'late night debugging setup 💻 custom keyb'
+  }
 ];
 
 export const CreatePostModal: React.FC = () => {
   const { createPost, setActiveTab } = useSosmetStore();
-  const [selectedImage, setSelectedImage] = useState<string>(SAMPLE_UPLOADS[0]);
-  const [caption, setCaption] = useState('');
-  const [selectedNiche, setSelectedNiche] = useState<Niche>('coffee');
+  const [selectedImage, setSelectedImage] = useState<string>(SAMPLE_POST_TYPES[0].url);
+  const [caption, setCaption] = useState(SAMPLE_POST_TYPES[0].defaultCaption);
+  const [selectedNiche, setSelectedNiche] = useState<Niche>(SAMPLE_POST_TYPES[0].id);
   const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSelectSample = (sample: typeof SAMPLE_POST_TYPES[0]) => {
+    setSelectedImage(sample.url);
+    setCaption(sample.defaultCaption);
+    setSelectedNiche(sample.id);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,7 +97,7 @@ export const CreatePostModal: React.FC = () => {
             onClick={() => fileInputRef.current?.click()}
             style={styles.changePhotoBtn}
           >
-            <Camera size={16} style={{ marginRight: 6 }} /> Ganti Foto
+            <Camera size={16} style={{ marginRight: 6 }} /> Ganti Foto (Galeri/Kamera)
           </button>
           <input
             type="file"
@@ -89,21 +108,22 @@ export const CreatePostModal: React.FC = () => {
           />
         </div>
 
-        {/* Preset Sample Selector */}
+        {/* Preset Post Types */}
         <div style={styles.presetSection}>
-          <span style={styles.sectionLabel}>Atau Pilih Foto Sampel:</span>
+          <span style={styles.sectionLabel}>Atau Pilih Tipe Foto Sampel:</span>
           <div style={styles.sampleGrid}>
-            {SAMPLE_UPLOADS.map((imgUrl, idx) => (
-              <img
+            {SAMPLE_POST_TYPES.map((sample, idx) => (
+              <div
                 key={idx}
-                src={imgUrl}
-                alt={`Sample ${idx}`}
-                onClick={() => setSelectedImage(imgUrl)}
+                onClick={() => handleSelectSample(sample)}
                 style={{
-                  ...styles.sampleThumb,
-                  border: selectedImage === imgUrl ? '2px solid var(--text-primary)' : '2px solid transparent'
+                  ...styles.sampleCard,
+                  border: selectedImage === sample.url ? '2px solid var(--text-primary)' : '1px solid var(--border-color)'
                 }}
-              />
+              >
+                <img src={sample.url} alt={sample.label} style={styles.sampleThumb} />
+                <span style={styles.sampleLabel}>{sample.label}</span>
+              </div>
             ))}
           </div>
         </div>
@@ -118,26 +138,6 @@ export const CreatePostModal: React.FC = () => {
             rows={3}
             style={styles.textarea}
           />
-        </div>
-
-        {/* Niche Category Picker */}
-        <div style={styles.nicheGroup}>
-          <label style={styles.sectionLabel}>Kategori / Niche</label>
-          <div style={styles.nicheRow}>
-            {NICHES.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => setSelectedNiche(n.id)}
-                style={{
-                  ...styles.nicheBtn,
-                  backgroundColor: selectedNiche === n.id ? 'var(--text-primary)' : 'var(--bg-tertiary)',
-                  color: selectedNiche === n.id ? 'var(--bg-primary)' : 'var(--text-primary)'
-                }}
-              >
-                {n.label}
-              </button>
-            ))}
-          </div>
         </div>
       </main>
     </div>
@@ -179,7 +179,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   previewContainer: {
     width: '100%',
-    height: '280px',
+    height: '260px',
     backgroundColor: '#111111',
     borderRadius: 'var(--radius-md)',
     overflow: 'hidden',
@@ -195,7 +195,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'absolute',
     bottom: '12px',
     right: '12px',
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     color: '#ffffff',
     padding: '6px 12px',
     borderRadius: 'var(--radius-full)',
@@ -216,15 +216,31 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sampleGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '8px'
+    gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: '6px'
+  },
+  sampleCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '4px',
+    borderRadius: 'var(--radius-sm)',
+    backgroundColor: 'var(--bg-secondary)',
+    cursor: 'pointer'
   },
   sampleThumb: {
     width: '100%',
-    height: '64px',
+    height: '48px',
     objectFit: 'cover',
     borderRadius: 'var(--radius-sm)',
-    cursor: 'pointer'
+    marginBottom: '4px'
+  },
+  sampleLabel: {
+    fontSize: '10px',
+    fontWeight: '600',
+    textAlign: 'center',
+    color: 'var(--text-primary)',
+    lineHeight: '1.2'
   },
   captionGroup: {
     marginBottom: '16px'
@@ -240,21 +256,5 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'inherit',
     outline: 'none',
     resize: 'none'
-  },
-  nicheGroup: {
-    marginBottom: '20px'
-  },
-  nicheRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px'
-  },
-  nicheBtn: {
-    padding: '6px 12px',
-    borderRadius: 'var(--radius-full)',
-    fontSize: '12px',
-    fontWeight: '600',
-    border: 'none',
-    cursor: 'pointer'
   }
 };
