@@ -16,25 +16,22 @@ import { INITIAL_SYNTHETIC_USERS } from '../data/seedAccounts';
 import { INITIAL_SEED_POSTS } from '../data/seedPosts';
 import { runSimulationTick } from '../services/simulationEngine';
 import { analyzeUserUploadedImage } from '../services/imageAnalyzer';
+import { saveImageToStorage } from '../services/imageStorage';
 
 interface SosmetState {
-  // Current user & onboarding
   userProfile: User;
   isOnboarded: boolean;
 
-  // Social graph & state
   syntheticUsers: SyntheticUser[];
   posts: Post[];
   notifications: Notification[];
   eventsLog: SimulationEvent[];
   relationships: Record<string, SocialRelationship>;
 
-  // Navigation & UI
   activeTab: NavigationTab;
   selectedProfileUser: User | SyntheticUser | null;
   isDebugOpen: boolean;
 
-  // Simulation
   simulationConfig: SimulationConfig;
 
   // Actions
@@ -122,8 +119,17 @@ export const useSosmetStore = create<SosmetState>()(
       createPost: async (imageUrl, caption, niche = 'lifestyle') => {
         const state = get();
         const now = Date.now();
+        const postId = `post-user-${now}`;
 
-        // Perform one-time visual analysis on uploaded image
+        // Save large base64 image data to IndexedDB if applicable
+        let finalImageUrl = imageUrl;
+        if (imageUrl.startsWith('data:image/')) {
+          const storageId = `img_id_${now}_${Math.random().toString(36).substr(2, 5)}`;
+          await saveImageToStorage(storageId, imageUrl);
+          finalImageUrl = storageId;
+        }
+
+        // Extract visual metadata
         const visualMetadata = await analyzeUserUploadedImage(
           imageUrl,
           caption,
@@ -131,11 +137,11 @@ export const useSosmetStore = create<SosmetState>()(
         );
 
         const newPost: Post = {
-          id: `post-user-${now}`,
+          id: postId,
           userId: state.userProfile.id,
           username: state.userProfile.username,
           userAvatar: state.userProfile.avatar,
-          imageUrl,
+          imageUrl: finalImageUrl,
           caption,
           createdAt: now,
           likesCount: 0,
@@ -163,10 +169,14 @@ export const useSosmetStore = create<SosmetState>()(
           posts: state.posts.map((p) => {
             if (p.id !== postId) return p;
             const isLiked = p.likedBy.includes(userId);
+            const newLikedBy = isLiked
+              ? p.likedBy.filter((id) => id !== userId)
+              : Array.from(new Set([...p.likedBy, userId]));
+
             return {
               ...p,
-              likesCount: isLiked ? p.likesCount - 1 : p.likesCount + 1,
-              likedBy: isLiked ? p.likedBy.filter((id) => id !== userId) : [...p.likedBy, userId]
+              likedBy: newLikedBy,
+              likesCount: newLikedBy.length
             };
           })
         }));
@@ -188,10 +198,11 @@ export const useSosmetStore = create<SosmetState>()(
         set((state) => ({
           posts: state.posts.map((p) => {
             if (p.id !== postId) return p;
+            const newComments = [newComment, ...p.comments];
             return {
               ...p,
-              commentsCount: p.commentsCount + 1,
-              comments: [newComment, ...p.comments]
+              comments: newComments,
+              commentsCount: newComments.length
             };
           })
         }));
@@ -213,7 +224,6 @@ export const useSosmetStore = create<SosmetState>()(
           const newFollowing = !currentRel.isFollowing;
           const updatedRel = { ...currentRel, isFollowing: newFollowing };
 
-          // Update target synthetic user follower count
           const updatedSyntheticUsers = state.syntheticUsers.map((u) => {
             if (u.id === targetUserId) {
               return {
@@ -268,9 +278,7 @@ export const useSosmetStore = create<SosmetState>()(
           apiKey: state.simulationConfig.aiApiKey
         });
 
-        // Apply tick result to state
         set((s) => {
-          // Merge updated posts
           const postsMap = new Map(s.posts.map((p) => [p.id, p]));
           tickResult.updatedPosts.forEach((up) => {
             if (up.id && postsMap.has(up.id)) {
@@ -278,13 +286,11 @@ export const useSosmetStore = create<SosmetState>()(
             }
           });
 
-          // Merge relationships
           const newRelObj = { ...s.relationships };
           tickResult.updatedRelationships.forEach((rel) => {
             newRelObj[`${rel.sourceId}_${rel.targetId}`] = rel;
           });
 
-          // User stat updates
           let userProfileUpdate = { ...s.userProfile };
           tickResult.updatedUsers.forEach((uStat) => {
             if (uStat.userId === s.userProfile.id && uStat.followersCount !== undefined) {

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
 import { Post } from '../../types/sosmet';
 import { useSosmetStore } from '../../store/sosmetStore';
+import { getImageFromStorage } from '../../services/imageStorage';
 
 interface PostCardProps {
   post: Post;
@@ -12,10 +13,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [showHeartPop, setShowHeartPop] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [isCommentsExpanded, setIsCommentsExpanded] = useState(false);
+  const [displayImage, setDisplayImage] = useState<string>(post.imageUrl);
+
+  // Resolve IndexedDB stored image if needed
+  useEffect(() => {
+    let isMounted = true;
+    if (post.imageUrl && post.imageUrl.startsWith('img_id_')) {
+      getImageFromStorage(post.imageUrl).then((resolved) => {
+        if (isMounted && resolved) {
+          setDisplayImage(resolved);
+        }
+      });
+    } else {
+      setDisplayImage(post.imageUrl);
+    }
+    return () => { isMounted = false; };
+  }, [post.imageUrl]);
 
   const isLikedByMe = post.likedBy.includes(userProfile.id);
 
-  // Handle double tap to like
   const handleImageDoubleClick = () => {
     if (!isLikedByMe) {
       toggleLikePost(post.id);
@@ -73,7 +89,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
       {/* Main Image */}
       <div style={styles.imageContainer} onDoubleClick={handleImageDoubleClick}>
-        <img src={post.imageUrl} alt={post.caption} style={styles.image} loading="lazy" />
+        <img src={displayImage} alt={post.caption} style={styles.image} loading="lazy" />
         {showHeartPop && (
           <div style={styles.heartPopOverlay}>
             <Heart size={80} fill="#ffffff" color="#ffffff" className="heart-pop" />

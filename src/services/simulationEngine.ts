@@ -13,39 +13,39 @@ export interface SimulationTickResult {
 /**
  * Calculates time decay factor for a post based on age.
  * Fresh posts (<2h) have high engagement potential.
- * Posts >24h decay significantly, but occasionally resurface.
+ * Posts >24h decay significantly, but 8% chance of delayed engagement.
  */
 function calculateTimeDecay(postCreatedAt: number, now: number): number {
   const ageInHours = (now - postCreatedAt) / (1000 * 3600);
-  if (ageInHours < 2) return 1.2;
+  if (ageInHours < 2) return 1.25;
   if (ageInHours < 6) return 1.0;
-  if (ageInHours < 12) return 0.7;
-  if (ageInHours < 24) return 0.4;
+  if (ageInHours < 12) return 0.65;
+  if (ageInHours < 24) return 0.35;
   if (ageInHours < 48) return 0.15;
-  // 5% chance of resurfacing older post
-  return Math.random() < 0.05 ? 0.3 : 0.05;
+  // 8% chance of resurfacing older post (delayed engagement)
+  return Math.random() < 0.08 ? 0.4 : 0.03;
 }
 
 /**
- * Calculates topic relevance between user interests & post niche/visual metadata.
+ * Calculates topic relevance between synthetic user interests & post niche/visual metadata.
  */
 function calculateRelevance(user: SyntheticUser, post: Post): number {
-  if (user.interests.includes(post.niche)) return 1.4;
+  if (user.interests.includes(post.niche)) return 1.45;
   const postTopics = post.visualMetadata?.possible_topics || [];
   const matches = user.preferredTopics.filter(t => postTopics.includes(t));
-  if (matches.length > 0) return 1.2;
-  return 0.7;
+  if (matches.length > 0) return 1.25;
+  return 0.6;
 }
 
 /**
- * Time of day activity multiplier (low late at night: 1am-6am).
+ * Time of day activity multiplier (users are quieter at night: 1am-6am).
  */
 function calculateTimeOfDayMultiplier(): number {
   const hour = new Date().getHours();
-  if (hour >= 1 && hour <= 6) return 0.25;
-  if (hour >= 7 && hour <= 9) return 0.8;
-  if (hour >= 12 && hour <= 14) return 1.1;
-  if (hour >= 19 && hour <= 23) return 1.3;
+  if (hour >= 1 && hour <= 6) return 0.2;
+  if (hour >= 7 && hour <= 9) return 0.85;
+  if (hour >= 12 && hour <= 14) return 1.15;
+  if (hour >= 19 && hour <= 23) return 1.35;
   return 1.0;
 }
 
@@ -67,24 +67,26 @@ export async function runSimulationTick(params: {
   const userStatUpdates = new Map<string, { followersCount?: number; followingCount?: number }>();
   const updatedRelationships: SocialRelationship[] = [];
 
-  // Pick a random subset of 3-7 active synthetic users for this tick
-  const numActiveThisTick = Math.min(syntheticUsers.length, Math.floor(Math.random() * 5) + 3);
+  // Pick a random subset of 2-5 active synthetic users for this tick
+  const numActiveThisTick = Math.min(syntheticUsers.length, Math.floor(Math.random() * 4) + 2);
   const shuffledUsers = [...syntheticUsers].sort(() => 0.5 - Math.random());
   const activeUsersThisTick = shuffledUsers.slice(0, numActiveThisTick);
 
   for (const actor of activeUsersThisTick) {
-    // Skip if user is lurker and random check fails
+    // Skip if user activity check fails
     const effectiveActivity = actor.activityLevel * timeOfDayMult;
     if (Math.random() > effectiveActivity) continue;
 
     // Pick 1-2 posts from the feed for this actor to view/interact with
-    const availablePosts = [...posts].sort(() => 0.5 - Math.random()).slice(0, 3);
+    const availablePosts = [...posts].sort(() => 0.5 - Math.random()).slice(0, 2);
 
     for (const targetPost of availablePosts) {
       // Don't interact with own posts
       if (targetPost.userId === actor.id) continue;
 
-      const isAlreadyLiked = targetPost.likedBy.includes(actor.id);
+      const currentLikedBy = targetPost.likedBy || [];
+      const isAlreadyLiked = currentLikedBy.includes(actor.id);
+
       const relKey = `${actor.id}_${targetPost.userId}`;
       const rel = relationships.get(relKey) || {
         sourceId: actor.id,
@@ -102,21 +104,22 @@ export async function runSimulationTick(params: {
         relevance * 
         (1 + rel.relationshipStrength) * 
         timeDecay * 
-        (0.8 + Math.random() * 0.4);
+        (0.75 + Math.random() * 0.5);
 
       if (!isAlreadyLiked && Math.random() < pLike) {
-        // Actor likes the post!
         let postToUpdate = updatedPostsMap.get(targetPost.id) || { ...targetPost };
+        const newLikedBy = Array.from(new Set([...postToUpdate.likedBy, actor.id]));
+
         postToUpdate = {
           ...postToUpdate,
-          likesCount: postToUpdate.likesCount + 1,
-          likedBy: [...postToUpdate.likedBy, actor.id]
+          likedBy: newLikedBy,
+          likesCount: newLikedBy.length
         };
         updatedPostsMap.set(targetPost.id, postToUpdate);
 
-        // Update relationship
+        // Update relationship strength
         rel.interactionCount += 1;
-        rel.relationshipStrength = Math.min(1.0, rel.relationshipStrength + 0.1);
+        rel.relationshipStrength = Math.min(1.0, rel.relationshipStrength + 0.08);
         relationships.set(relKey, rel);
         updatedRelationships.push(rel);
 
@@ -129,10 +132,10 @@ export async function runSimulationTick(params: {
           description: `@${actor.username} menyukai postingan @${targetPost.username}`
         });
 
-        // Notify post creator if it's the real user
+        // Notify creator if it's the user
         if (targetPost.userId === userProfile.id) {
           newNotifications.push({
-            id: `notif-${now}-${Math.random()}`,
+            id: `notif-like-${now}-${Math.random()}`,
             recipientId: userProfile.id,
             actorId: actor.id,
             actorUsername: actor.username,
@@ -149,12 +152,12 @@ export async function runSimulationTick(params: {
       const pComment = actor.engagementTendency.commentProbability * 
         relevance * 
         timeDecay * 
+        0.55 * // Comments are significantly rarer than likes
         (0.7 + Math.random() * 0.5);
 
       const alreadyCommentedByActor = targetPost.comments.some(c => c.userId === actor.id);
 
       if (!alreadyCommentedByActor && Math.random() < pComment) {
-        // Generate natural comment via AI generator (or fallback)
         const commentText = await generateSyntheticComment(
           {
             commenter: actor,
@@ -167,7 +170,7 @@ export async function runSimulationTick(params: {
 
         let postToUpdate = updatedPostsMap.get(targetPost.id) || { ...targetPost };
         const newCommentObj = {
-          id: `comment-${now}-${Math.random()}`,
+          id: `comment-${now}-${Math.random().toString(36).substr(2, 6)}`,
           postId: targetPost.id,
           userId: actor.id,
           username: actor.username,
@@ -176,16 +179,17 @@ export async function runSimulationTick(params: {
           createdAt: now
         };
 
+        const updatedComments = [newCommentObj, ...postToUpdate.comments];
         postToUpdate = {
           ...postToUpdate,
-          commentsCount: postToUpdate.commentsCount + 1,
-          comments: [newCommentObj, ...postToUpdate.comments]
+          comments: updatedComments,
+          commentsCount: updatedComments.length
         };
         updatedPostsMap.set(targetPost.id, postToUpdate);
 
         // Update relationship
         rel.interactionCount += 2;
-        rel.relationshipStrength = Math.min(1.0, rel.relationshipStrength + 0.2);
+        rel.relationshipStrength = Math.min(1.0, rel.relationshipStrength + 0.15);
         relationships.set(relKey, rel);
         updatedRelationships.push(rel);
 
@@ -200,7 +204,7 @@ export async function runSimulationTick(params: {
 
         if (targetPost.userId === userProfile.id) {
           newNotifications.push({
-            id: `notif-${now}-${Math.random()}`,
+            id: `notif-comment-${now}-${Math.random()}`,
             recipientId: userProfile.id,
             actorId: actor.id,
             actorUsername: actor.username,
@@ -215,7 +219,7 @@ export async function runSimulationTick(params: {
       }
 
       // --- 3. PROFILE VISIT & FOLLOW SIMULATION ---
-      const pVisit = actor.engagementTendency.profileVisitProbability * 0.3;
+      const pVisit = actor.engagementTendency.profileVisitProbability * 0.25;
       if (Math.random() < pVisit) {
         events.push({
           id: `evt-visit-${now}-${Math.random()}`,
@@ -229,12 +233,12 @@ export async function runSimulationTick(params: {
         // Follow check after profile visit
         if (!rel.isFollowing) {
           const pFollow = actor.engagementTendency.followProbability * 
-            (rel.relationshipStrength > 0.3 ? 1.8 : 0.8) * 
-            (Math.random() < 0.2 ? 1.5 : 0.6);
+            (rel.relationshipStrength > 0.3 ? 1.6 : 0.7) * 
+            (Math.random() < 0.25 ? 1.4 : 0.5);
 
           if (Math.random() < pFollow) {
             rel.isFollowing = true;
-            rel.relationshipStrength = Math.min(1.0, rel.relationshipStrength + 0.3);
+            rel.relationshipStrength = Math.min(1.0, rel.relationshipStrength + 0.25);
             relationships.set(relKey, rel);
             updatedRelationships.push(rel);
 
@@ -249,7 +253,7 @@ export async function runSimulationTick(params: {
 
             if (targetPost.userId === userProfile.id) {
               newNotifications.push({
-                id: `notif-${now}-${Math.random()}`,
+                id: `notif-follow-${now}-${Math.random()}`,
                 recipientId: userProfile.id,
                 actorId: actor.id,
                 actorUsername: actor.username,
