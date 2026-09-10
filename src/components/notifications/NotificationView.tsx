@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { Heart, MessageCircle, UserPlus, Eye } from 'lucide-react';
 import { useSosmetStore } from '../../store/sosmetStore';
+import { SosmetImage } from '../common/SosmetImage';
 
 export const NotificationView: React.FC = () => {
   const { notifications, markNotificationsRead, posts, setSelectedProfileUser, syntheticUsers, setActiveTab } = useSosmetStore();
@@ -48,7 +48,7 @@ export const NotificationView: React.FC = () => {
               return (
                 <div key={notif.id} style={styles.row}>
                   <div style={styles.avatarWrapper} onClick={() => handleActorClick(notif.actorId)}>
-                    <img src={notif.actorAvatar} alt={notif.actorUsername} style={styles.avatar} />
+                    <SosmetImage src={notif.actorAvatar} alt={notif.actorUsername} style={styles.avatar} />
                   </div>
 
                   <div style={styles.textContainer}>
@@ -68,7 +68,9 @@ export const NotificationView: React.FC = () => {
                   </div>
 
                   {relatedPost && (notif.type === 'like' || notif.type === 'comment') && (
-                    <img src={relatedPost.imageUrl} alt="Post thumbnail" style={styles.postThumb} />
+                    <div style={styles.postThumbWrapper}>
+                      <SosmetImage src={relatedPost.imageUrl} alt="Post thumbnail" style={styles.postThumb} />
+                    </div>
                   )}
 
                   {notif.type === 'follow' && (
@@ -128,11 +130,15 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid var(--border-color)'
   },
   avatarWrapper: {
-    cursor: 'pointer'
-  },
-  avatar: {
+    cursor: 'pointer',
     width: '42px',
     height: '42px',
+    borderRadius: '50%',
+    overflow: 'hidden'
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
     borderRadius: '50%',
     objectFit: 'cover'
   },
@@ -153,10 +159,15 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-muted)',
     marginLeft: '4px'
   },
-  postThumb: {
+  postThumbWrapper: {
     width: '40px',
     height: '40px',
     borderRadius: 'var(--radius-sm)',
+    overflow: 'hidden'
+  },
+  postThumb: {
+    width: '100%',
+    height: '100%',
     objectFit: 'cover'
   }
 };

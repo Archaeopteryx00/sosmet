@@ -1,54 +1,21 @@
 import React, { useState, useRef } from 'react';
-import { Camera, X, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Camera, Image as ImageIcon } from 'lucide-react';
 import { useSosmetStore } from '../../store/sosmetStore';
-import { Niche } from '../../types/sosmet';
 
-const SAMPLE_POST_TYPES: { id: Niche; label: string; url: string; defaultCaption: string }[] = [
-  {
-    id: 'lifestyle',
-    label: 'Selfie Biasa',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
-    defaultCaption: 'casual Sunday afternoon 🌤️'
-  },
-  {
-    id: 'coffee',
-    label: 'Makanan / Kopi',
-    url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80',
-    defaultCaption: 'avocado toast + iced americano 🥑☕'
-  },
-  {
-    id: 'travel',
-    label: 'Pemandangan',
-    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80',
-    defaultCaption: 'vitamin sea 🌊 clear water, clear mind'
-  },
-  {
-    id: 'streetwear',
-    label: 'Outfit',
-    url: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&auto=format&fit=crop&q=80',
-    defaultCaption: 'weekend fit check 👟 vintage oversized tee'
-  },
-  {
-    id: 'tech',
-    label: 'Foto Random / Objek',
-    url: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80',
-    defaultCaption: 'late night debugging setup 💻 custom keyb'
-  }
+const SAMPLE_POST_PHOTOS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80'
 ];
 
 export const CreatePostModal: React.FC = () => {
   const { createPost, setActiveTab } = useSosmetStore();
-  const [selectedImage, setSelectedImage] = useState<string>(SAMPLE_POST_TYPES[0].url);
-  const [caption, setCaption] = useState(SAMPLE_POST_TYPES[0].defaultCaption);
-  const [selectedNiche, setSelectedNiche] = useState<Niche>(SAMPLE_POST_TYPES[0].id);
+  const [selectedImage, setSelectedImage] = useState<string>(SAMPLE_POST_PHOTOS[0]);
+  const [caption, setCaption] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSelectSample = (sample: typeof SAMPLE_POST_TYPES[0]) => {
-    setSelectedImage(sample.url);
-    setCaption(sample.defaultCaption);
-    setSelectedNiche(sample.id);
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -66,13 +33,14 @@ export const CreatePostModal: React.FC = () => {
   const handlePublish = async () => {
     if (!selectedImage) return;
     setIsPublishing(true);
-    await createPost(selectedImage, caption, selectedNiche);
+    // AI Vision analysis extracts internal visual metadata automatically without user category prompt
+    await createPost(selectedImage, caption);
     setIsPublishing(false);
   };
 
   return (
     <div style={styles.container}>
-      {/* Top Bar */}
+      {/* Top Header */}
       <header style={styles.header}>
         <button onClick={() => setActiveTab('HOME')} style={styles.cancelBtn}>
           Batal
@@ -87,9 +55,9 @@ export const CreatePostModal: React.FC = () => {
         </button>
       </header>
 
-      {/* Main Content */}
+      {/* Main Form */}
       <main style={styles.content}>
-        {/* Photo Preview */}
+        {/* Photo Container */}
         <div style={styles.previewContainer}>
           <img src={selectedImage} alt="Post Preview" style={styles.previewImage} />
           
@@ -97,7 +65,7 @@ export const CreatePostModal: React.FC = () => {
             onClick={() => fileInputRef.current?.click()}
             style={styles.changePhotoBtn}
           >
-            <Camera size={16} style={{ marginRight: 6 }} /> Ganti Foto (Galeri/Kamera)
+            <Camera size={16} style={{ marginRight: 6 }} /> Pilih Foto (Galeri / Kamera)
           </button>
           <input
             type="file"
@@ -108,36 +76,34 @@ export const CreatePostModal: React.FC = () => {
           />
         </div>
 
-        {/* Preset Post Types */}
-        <div style={styles.presetSection}>
-          <span style={styles.sectionLabel}>Atau Pilih Tipe Foto Sampel:</span>
-          <div style={styles.sampleGrid}>
-            {SAMPLE_POST_TYPES.map((sample, idx) => (
-              <div
-                key={idx}
-                onClick={() => handleSelectSample(sample)}
-                style={{
-                  ...styles.sampleCard,
-                  border: selectedImage === sample.url ? '2px solid var(--text-primary)' : '1px solid var(--border-color)'
-                }}
-              >
-                <img src={sample.url} alt={sample.label} style={styles.sampleThumb} />
-                <span style={styles.sampleLabel}>{sample.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Caption Field */}
+        {/* Optional Caption Input */}
         <div style={styles.captionGroup}>
-          <label style={styles.sectionLabel}>Caption</label>
           <textarea
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            placeholder="Tulis caption postingan kamu..."
+            placeholder="Tulis caption... (opsional)"
             rows={3}
             style={styles.textarea}
           />
+        </div>
+
+        {/* Subtle Sample Selector Fallback */}
+        <div style={styles.sampleSection}>
+          <span style={styles.sampleLabel}>Atau pilih foto galeri sampel:</span>
+          <div style={styles.sampleRow}>
+            {SAMPLE_POST_PHOTOS.map((url, idx) => (
+              <img
+                key={idx}
+                src={url}
+                alt={`Sample ${idx}`}
+                onClick={() => setSelectedImage(url)}
+                style={{
+                  ...styles.sampleThumb,
+                  border: selectedImage === url ? '2px solid var(--text-primary)' : '1px solid var(--border-color)'
+                }}
+              />
+            ))}
+          </div>
         </div>
       </main>
     </div>
@@ -179,7 +145,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   previewContainer: {
     width: '100%',
-    height: '260px',
+    height: '320px',
     backgroundColor: '#111111',
     borderRadius: 'var(--radius-md)',
     overflow: 'hidden',
@@ -197,57 +163,19 @@ const styles: Record<string, React.CSSProperties> = {
     right: '12px',
     backgroundColor: 'rgba(0,0,0,0.75)',
     color: '#ffffff',
-    padding: '6px 12px',
+    padding: '8px 14px',
     borderRadius: 'var(--radius-full)',
     fontSize: '12px',
     fontWeight: '600',
     display: 'flex',
     alignItems: 'center'
   },
-  presetSection: {
-    marginBottom: '16px'
-  },
-  sectionLabel: {
-    fontSize: '12px',
-    fontWeight: '600',
-    color: 'var(--text-secondary)',
-    marginBottom: '6px',
-    display: 'block'
-  },
-  sampleGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(5, 1fr)',
-    gap: '6px'
-  },
-  sampleCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '4px',
-    borderRadius: 'var(--radius-sm)',
-    backgroundColor: 'var(--bg-secondary)',
-    cursor: 'pointer'
-  },
-  sampleThumb: {
-    width: '100%',
-    height: '48px',
-    objectFit: 'cover',
-    borderRadius: 'var(--radius-sm)',
-    marginBottom: '4px'
-  },
-  sampleLabel: {
-    fontSize: '10px',
-    fontWeight: '600',
-    textAlign: 'center',
-    color: 'var(--text-primary)',
-    lineHeight: '1.2'
-  },
   captionGroup: {
-    marginBottom: '16px'
+    marginBottom: '20px'
   },
   textarea: {
     width: '100%',
-    padding: '10px 12px',
+    padding: '12px',
     borderRadius: 'var(--radius-sm)',
     border: '1px solid var(--border-strong)',
     backgroundColor: 'var(--bg-secondary)',
@@ -256,5 +184,28 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'inherit',
     outline: 'none',
     resize: 'none'
+  },
+  sampleSection: {
+    marginTop: '10px'
+  },
+  sampleLabel: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: 'var(--text-secondary)',
+    marginBottom: '6px',
+    display: 'block'
+  },
+  sampleRow: {
+    display: 'flex',
+    gap: '8px',
+    overflowX: 'auto'
+  },
+  sampleThumb: {
+    width: '56px',
+    height: '56px',
+    objectFit: 'cover',
+    borderRadius: 'var(--radius-sm)',
+    cursor: 'pointer',
+    flexShrink: 0
   }
 };

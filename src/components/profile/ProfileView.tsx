@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Settings, Grid, Bookmark, Key, Check } from 'lucide-react';
+import { Settings, Grid } from 'lucide-react';
 import { useSosmetStore } from '../../store/sosmetStore';
+import { SosmetImage } from '../common/SosmetImage';
 
 export const ProfileView: React.FC = () => {
   const { 
@@ -20,14 +21,12 @@ export const ProfileView: React.FC = () => {
   const [editName, setEditName] = useState(userProfile.displayName);
   const [apiKeyInput, setApiKeyInput] = useState(simulationConfig.aiApiKey || '');
 
-  // Determine if viewing own profile or synthetic user profile
   const targetUser = selectedProfileUser || userProfile;
   const isOwnProfile = targetUser.id === userProfile.id;
 
   const relKey = `${userProfile.id}_${targetUser.id}`;
   const isFollowing = relationships[relKey]?.isFollowing;
 
-  // Filter posts by target user
   const userPosts = posts.filter((p) => p.userId === targetUser.id);
 
   const handleSaveProfile = () => {
@@ -48,25 +47,23 @@ export const ProfileView: React.FC = () => {
 
   return (
     <div style={styles.container}>
-      {/* Top Bar */}
+      {/* Top Header */}
       <header style={styles.header}>
         <h2 style={styles.usernameHeader}>@{targetUser.username}</h2>
         {isOwnProfile && (
-          <button onClick={() => setShowSettingsModal(true)} style={styles.iconBtn} aria-label="Pengaturan AI">
+          <button onClick={() => setShowSettingsModal(true)} style={styles.iconBtn} aria-label="Pengaturan">
             <Settings size={20} color="var(--text-primary)" />
           </button>
         )}
       </header>
 
-      {/* Main Profile Info */}
+      {/* Profile Details */}
       <main style={styles.content}>
         <div style={styles.profileHeader}>
-          {/* Avatar */}
           <div style={styles.avatarWrapper}>
-            <img src={targetUser.avatar} alt={targetUser.username} style={styles.avatar} />
+            <SosmetImage src={targetUser.avatar} alt={targetUser.username} style={styles.avatar} />
           </div>
 
-          {/* Stats */}
           <div style={styles.statsRow}>
             <div style={styles.statItem}>
               <span style={styles.statNumber}>{userPosts.length}</span>
@@ -83,20 +80,11 @@ export const ProfileView: React.FC = () => {
           </div>
         </div>
 
-        {/* Bio & Details */}
         <div style={styles.bioSection}>
           <h3 style={styles.displayName}>{targetUser.displayName}</h3>
           <p style={styles.bioText}>{targetUser.bio}</p>
-
-          {/* Interests Tags */}
-          <div style={styles.interestsRow}>
-            {targetUser.interests.map((interest) => (
-              <span key={interest} style={styles.interestBadge}>#{interest}</span>
-            ))}
-          </div>
         </div>
 
-        {/* Profile Action Buttons */}
         <div style={styles.actionButtons}>
           {isOwnProfile ? (
             <button onClick={() => setIsEditing(!isEditing)} className="btn-secondary" style={styles.fullWidthBtn}>
@@ -113,7 +101,6 @@ export const ProfileView: React.FC = () => {
           )}
         </div>
 
-        {/* Edit Form Drawer */}
         {isEditing && (
           <div style={styles.editCard}>
             <label style={styles.label}>Nama Tampilan</label>
@@ -138,14 +125,13 @@ export const ProfileView: React.FC = () => {
           </div>
         )}
 
-        {/* Tabs Bar */}
         <div style={styles.tabBar}>
           <div style={styles.activeTabItem}>
             <Grid size={18} color="var(--text-primary)" />
           </div>
         </div>
 
-        {/* Photo Grid */}
+        {/* Photo Grid using SosmetImage */}
         <div style={styles.grid}>
           {userPosts.length === 0 ? (
             <div style={styles.emptyGrid}>
@@ -154,20 +140,20 @@ export const ProfileView: React.FC = () => {
           ) : (
             userPosts.map((post) => (
               <div key={post.id} style={styles.gridItem}>
-                <img src={post.imageUrl} alt={post.caption} style={styles.gridImg} loading="lazy" />
+                <SosmetImage src={post.imageUrl} alt={post.caption} style={styles.gridImg} />
               </div>
             ))
           )}
         </div>
       </main>
 
-      {/* Settings Modal (API Key Config) */}
+      {/* Settings Modal */}
       {showSettingsModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard} className="fade-in">
             <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: 8 }}>Pengaturan AI & Sistem</h3>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: 14 }}>
-              Sosmet berjalan 100% tanpa API key menggunakan engine simulasi bawaan. Jika ingin mengaktifkan analisis gambar multimodal & komentar LLM via Google Gemini, masukkan API key di bawah.
+              Sosmet berjalan 100% tanpa API key. Masukkan Gemini API key (opsional) jika ingin analisis gambar multimodal eksternal.
             </p>
 
             <div style={{ marginBottom: 16 }}>
@@ -236,7 +222,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   avatarWrapper: {
     width: '76px',
-    height: '76px'
+    height: '76px',
+    borderRadius: '50%',
+    overflow: 'hidden'
   },
   avatar: {
     width: '100%',
@@ -274,17 +262,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-primary)',
     marginTop: '2px',
     lineHeight: '1.4'
-  },
-  interestsRow: {
-    display: 'flex',
-    gap: '6px',
-    marginTop: '6px',
-    flexWrap: 'wrap'
-  },
-  interestBadge: {
-    fontSize: '11px',
-    color: 'var(--accent-blue)',
-    fontWeight: '600'
   },
   actionButtons: {
     marginBottom: '16px'
@@ -335,7 +312,8 @@ const styles: Record<string, React.CSSProperties> = {
   gridItem: {
     position: 'relative',
     paddingTop: '100%',
-    backgroundColor: '#111111'
+    backgroundColor: '#e4e4e7',
+    overflow: 'hidden'
   },
   gridImg: {
     position: 'absolute',

@@ -35,9 +35,9 @@ interface SosmetState {
   simulationConfig: SimulationConfig;
 
   // Actions
-  completeOnboarding: (data: { username: string; displayName: string; avatar: string; bio: string; interests: Niche[] }) => void;
+  completeOnboarding: (data?: { username?: string; displayName?: string; avatar?: string; bio?: string }) => void;
   updateUserProfile: (data: Partial<User>) => void;
-  createPost: (imageUrl: string, caption: string, niche?: Niche) => Promise<void>;
+  createPost: (imageUrl: string, caption?: string) => Promise<void>;
   toggleLikePost: (postId: string) => void;
   addComment: (postId: string, text: string) => void;
   toggleFollowUser: (targetUserId: string) => void;
@@ -55,7 +55,7 @@ const DEFAULT_USER: User = {
   username: 'kamu',
   displayName: 'Pengguna Sosmet',
   avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-  bio: 'Baru saja bergabung di Sosmet 🌟',
+  bio: 'Hadir di Sosmet 🌟',
   interests: ['lifestyle', 'photography', 'coffee'],
   followersCount: 12,
   followingCount: 8,
@@ -97,17 +97,23 @@ export const useSosmetStore = create<SosmetState>()(
       },
 
       completeOnboarding: (data) => {
-        set((state) => ({
-          userProfile: {
-            ...state.userProfile,
-            username: data.username.toLowerCase().trim(),
-            displayName: data.displayName || data.username,
-            avatar: data.avatar,
-            bio: data.bio || 'Hadir di Sosmet.',
-            interests: data.interests.length > 0 ? data.interests : ['lifestyle']
-          },
-          isOnboarded: true
-        }));
+        set((state) => {
+          const username = data?.username?.trim() ? data.username.toLowerCase().trim().replace(/\s+/g, '_') : 'pengguna';
+          const displayName = data?.displayName?.trim() || username;
+          const avatar = data?.avatar || DEFAULT_USER.avatar;
+          const bio = data?.bio?.trim() || 'Hadir di Sosmet 🌟';
+
+          return {
+            userProfile: {
+              ...state.userProfile,
+              username,
+              displayName,
+              avatar,
+              bio
+            },
+            isOnboarded: true
+          };
+        });
       },
 
       updateUserProfile: (data) => {
@@ -116,7 +122,7 @@ export const useSosmetStore = create<SosmetState>()(
         }));
       },
 
-      createPost: async (imageUrl, caption, niche = 'lifestyle') => {
+      createPost: async (imageUrl, caption = '') => {
         const state = get();
         const now = Date.now();
         const postId = `post-user-${now}`;
@@ -129,12 +135,26 @@ export const useSosmetStore = create<SosmetState>()(
           finalImageUrl = storageId;
         }
 
-        // Extract visual metadata
+        // Perform internal AI visual analysis to derive visual metadata & niche implicitly
         const visualMetadata = await analyzeUserUploadedImage(
           imageUrl,
           caption,
           state.simulationConfig.aiApiKey
         );
+
+        // Infer niche internally from AI metadata without asking user
+        let derivedNiche: Niche = 'lifestyle';
+        if (visualMetadata?.possible_topics?.includes('coffee')) derivedNiche = 'coffee';
+        else if (visualMetadata?.possible_topics?.includes('streetwear')) derivedNiche = 'streetwear';
+        else if (visualMetadata?.possible_topics?.includes('nature')) derivedNiche = 'travel';
+        else if (visualMetadata?.possible_topics?.includes('tech')) derivedNiche = 'tech';
+        else if (visualMetadata?.possible_topics?.includes('architecture')) derivedNiche = 'architecture';
+
+        // Implicitly expand user's interest profile based on post behavior
+        const currentInterests = state.userProfile.interests;
+        const updatedInterests = currentInterests.includes(derivedNiche) 
+          ? currentInterests 
+          : [...currentInterests, derivedNiche];
 
         const newPost: Post = {
           id: postId,
@@ -142,11 +162,11 @@ export const useSosmetStore = create<SosmetState>()(
           username: state.userProfile.username,
           userAvatar: state.userProfile.avatar,
           imageUrl: finalImageUrl,
-          caption,
+          caption: caption.trim(),
           createdAt: now,
           likesCount: 0,
           commentsCount: 0,
-          niche,
+          niche: derivedNiche,
           likedBy: [],
           comments: [],
           visualMetadata,
@@ -157,7 +177,8 @@ export const useSosmetStore = create<SosmetState>()(
           posts: [newPost, ...s.posts],
           userProfile: {
             ...s.userProfile,
-            postsCount: s.userProfile.postsCount + 1
+            postsCount: s.userProfile.postsCount + 1,
+            interests: updatedInterests
           },
           activeTab: 'HOME'
         }));
@@ -165,21 +186,32 @@ export const useSosmetStore = create<SosmetState>()(
 
       toggleLikePost: (postId) => {
         const userId = get().userProfile.id;
-        set((state) => ({
-          posts: state.posts.map((p) => {
-            if (p.id !== postId) return p;
-            const isLiked = p.likedBy.includes(userId);
-            const newLikedBy = isLiked
-              ? p.likedBy.filter((id) => id !== userId)
-              : Array.from(new Set([...p.likedBy, userId]));
+        set((state) => {
+          const targetPost = state.posts.find((p) => p.id === postId);
+          let updatedInterests = state.userProfile.interests;
 
-            return {
-              ...p,
-              likedBy: newLikedBy,
-              likesCount: newLikedBy.length
-            };
-          })
-        }));
+          if (targetPost && !updatedInterests.includes(targetPost.niche)) {
+            // Implicit interest evolution when user likes a post
+            updatedInterests = [...updatedInterests, targetPost.niche];
+          }
+
+          return {
+            userProfile: { ...state.userProfile, interests: updatedInterests },
+            posts: state.posts.map((p) => {
+              if (p.id !== postId) return p;
+              const isLiked = p.likedBy.includes(userId);
+              const newLikedBy = isLiked
+                ? p.likedBy.filter((id) => id !== userId)
+                : Array.from(new Set([...p.likedBy, userId]));
+
+              return {
+                ...p,
+                likedBy: newLikedBy,
+                likesCount: newLikedBy.length
+              };
+            })
+          };
+        });
       },
 
       addComment: (postId, text) => {
@@ -224,6 +256,13 @@ export const useSosmetStore = create<SosmetState>()(
           const newFollowing = !currentRel.isFollowing;
           const updatedRel = { ...currentRel, isFollowing: newFollowing };
 
+          // Implicit interest evolution when following a synthetic user
+          const targetSynUser = state.syntheticUsers.find((u) => u.id === targetUserId);
+          let updatedInterests = state.userProfile.interests;
+          if (newFollowing && targetSynUser && !updatedInterests.includes(targetSynUser.niche)) {
+            updatedInterests = [...updatedInterests, targetSynUser.niche];
+          }
+
           const updatedSyntheticUsers = state.syntheticUsers.map((u) => {
             if (u.id === targetUserId) {
               return {
@@ -238,6 +277,7 @@ export const useSosmetStore = create<SosmetState>()(
             relationships: { ...state.relationships, [relKey]: updatedRel },
             userProfile: {
               ...state.userProfile,
+              interests: updatedInterests,
               followingCount: newFollowing
                 ? state.userProfile.followingCount + 1
                 : Math.max(0, state.userProfile.followingCount - 1)

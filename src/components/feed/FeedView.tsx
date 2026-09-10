@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useSosmetStore } from '../../store/sosmetStore';
 import { PostCard } from './PostCard';
-import { Niche } from '../../types/sosmet';
 
 export const FeedView: React.FC = () => {
   const { posts, userProfile, triggerSimulationTick } = useSosmetStore();
-  const [selectedNiche, setSelectedNiche] = useState<Niche | 'ALL'>('ALL');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -15,16 +13,10 @@ export const FeedView: React.FC = () => {
     setTimeout(() => setIsRefreshing(false), 600);
   };
 
-  // Filter & rank posts
-  const filteredPosts = posts.filter((p) => {
-    if (selectedNiche === 'ALL') return true;
-    return p.niche === selectedNiche;
-  });
-
-  // Rank posts considering user interests & recency
-  const rankedPosts = [...filteredPosts].sort((a, b) => {
-    const aIsInterest = userProfile.interests.includes(a.niche) ? 1.3 : 1.0;
-    const bIsInterest = userProfile.interests.includes(b.niche) ? 1.3 : 1.0;
+  // Algorithmic feed ranking based on implicit user interests, relationship strength & recency
+  const rankedPosts = [...posts].sort((a, b) => {
+    const aIsInterest = userProfile.interests.includes(a.niche) ? 1.35 : 1.0;
+    const bIsInterest = userProfile.interests.includes(b.niche) ? 1.35 : 1.0;
     
     const aScore = (a.createdAt / 100000) * aIsInterest + (a.likesCount * 2);
     const bScore = (b.createdAt / 100000) * bIsInterest + (b.likesCount * 2);
@@ -52,38 +44,12 @@ export const FeedView: React.FC = () => {
         </div>
       </header>
 
-      {/* Filter Chips */}
-      <div style={styles.filterBar}>
-        <button
-          onClick={() => setSelectedNiche('ALL')}
-          style={{
-            ...styles.chip,
-            backgroundColor: selectedNiche === 'ALL' ? 'var(--text-primary)' : 'var(--bg-tertiary)',
-            color: selectedNiche === 'ALL' ? 'var(--bg-primary)' : 'var(--text-primary)'
-          }}
-        >
-          Semua
-        </button>
-        {userProfile.interests.map((interest) => (
-          <button
-            key={interest}
-            onClick={() => setSelectedNiche(interest)}
-            style={{
-              ...styles.chip,
-              backgroundColor: selectedNiche === interest ? 'var(--text-primary)' : 'var(--bg-tertiary)',
-              color: selectedNiche === interest ? 'var(--bg-primary)' : 'var(--text-primary)'
-            }}
-          >
-            {interest}
-          </button>
-        ))}
-      </div>
-
-      {/* Posts Timeline */}
+      {/* Timeline Feed */}
       <main style={styles.feedContent}>
         {rankedPosts.length === 0 ? (
           <div style={styles.emptyState}>
-            <p style={{ fontWeight: 600, fontSize: '15px' }}>Belum ada postingan di kategori ini.</p>            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: 4 }}>Jadilah yang pertama mengupload!</p>
+            <p style={{ fontWeight: 600, fontSize: '15px' }}>Belum ada postingan di feed.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: 4 }}>Bagikan foto pertama kamu!</p>
           </div>
         ) : (
           rankedPosts.map((post) => <PostCard key={post.id} post={post} />)
@@ -129,26 +95,10 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center'
   },
-  filterBar: {
-    display: 'flex',
-    gap: '8px',
-    padding: '10px 14px',
-    overflowX: 'auto',
-    borderBottom: '1px solid var(--border-color)',
-    backgroundColor: 'var(--bg-secondary)'
-  },
-  chip: {
-    padding: '5px 12px',
-    borderRadius: 'var(--radius-full)',
-    fontSize: '12px',
-    fontWeight: '600',
-    whiteSpace: 'nowrap',
-    border: 'none',
-    cursor: 'pointer'
-  },
   feedContent: {
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    paddingBottom: '20px'
   },
   emptyState: {
     padding: '60px 20px',

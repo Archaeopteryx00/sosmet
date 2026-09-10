@@ -1,22 +1,18 @@
 import React, { useState } from 'react';
-import { Search, UserPlus, UserCheck } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useSosmetStore } from '../../store/sosmetStore';
-import { Niche } from '../../types/sosmet';
+import { SosmetImage } from '../common/SosmetImage';
 
 export const DiscoverView: React.FC = () => {
   const { posts, syntheticUsers, userProfile, relationships, toggleFollowUser, setSelectedProfileUser, setActiveTab } = useSosmetStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState<Niche | 'ALL'>('ALL');
 
-  // Filter posts by search query or topic
   const explorePosts = posts.filter((p) => {
-    if (selectedTopic !== 'ALL' && p.niche !== selectedTopic) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return p.caption.toLowerCase().includes(q) || p.username.toLowerCase().includes(q);
   });
 
-  // Recommended accounts based on user interests
   const recommendedUsers = syntheticUsers.filter((u) => {
     const isInterestsMatch = u.interests.some((i) => userProfile.interests.includes(i));
     return isInterestsMatch;
@@ -35,7 +31,7 @@ export const DiscoverView: React.FC = () => {
           <Search size={16} color="var(--text-muted)" style={{ marginRight: 8 }} />
           <input
             type="text"
-            placeholder="Cari postingan, topik, atau teman..."
+            placeholder="Cari postingan atau teman..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={styles.searchInput}
@@ -56,7 +52,7 @@ export const DiscoverView: React.FC = () => {
                 return (
                   <div key={user.id} style={styles.userCard}>
                     <div style={styles.avatarWrapper} onClick={() => handleUserClick(user)}>
-                      <img src={user.avatar} alt={user.username} style={styles.userAvatar} />
+                      <SosmetImage src={user.avatar} alt={user.username} style={styles.userAvatar} />
                     </div>
                     <span style={styles.userHandle} onClick={() => handleUserClick(user)}>
                       {user.username}
@@ -80,11 +76,14 @@ export const DiscoverView: React.FC = () => {
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Jelajah Visual</h3>
           
-          {/* Photo Grid */}
           <div style={styles.grid}>
             {explorePosts.map((post) => (
-              <div key={post.id} style={styles.gridItem} onClick={() => handleUserClick(syntheticUsers.find(u => u.id === post.userId) || post)}>
-                <img src={post.imageUrl} alt={post.caption} style={styles.gridImg} loading="lazy" />
+              <div 
+                key={post.id} 
+                style={styles.gridItem} 
+                onClick={() => handleUserClick(syntheticUsers.find(u => u.id === post.userId) || post)}
+              >
+                <SosmetImage src={post.imageUrl} alt={post.caption} style={styles.gridImg} />
               </div>
             ))}
           </div>
@@ -157,11 +156,15 @@ const styles: Record<string, React.CSSProperties> = {
   },
   avatarWrapper: {
     cursor: 'pointer',
-    marginBottom: '6px'
-  },
-  userAvatar: {
+    marginBottom: '6px',
     width: '54px',
     height: '54px',
+    borderRadius: '50%',
+    overflow: 'hidden'
+  },
+  userAvatar: {
+    width: '100%',
+    height: '100%',
     borderRadius: '50%',
     objectFit: 'cover'
   },
@@ -195,7 +198,8 @@ const styles: Record<string, React.CSSProperties> = {
   gridItem: {
     position: 'relative',
     paddingTop: '100%',
-    backgroundColor: '#111111',
+    backgroundColor: '#e4e4e7',
+    overflow: 'hidden',
     cursor: 'pointer'
   },
   gridImg: {

@@ -8,7 +8,6 @@ import { NotificationView } from '../notifications/NotificationView';
 import { ProfileView } from '../profile/ProfileView';
 import { OnboardingModal } from '../onboarding/OnboardingModal';
 import { SimulationDebugDrawer } from '../debug/SimulationDebugDrawer';
-import { Cpu } from 'lucide-react';
 
 export const MobileShell: React.FC = () => {
   const { 
@@ -23,7 +22,6 @@ export const MobileShell: React.FC = () => {
   useEffect(() => {
     if (simulationConfig.isPaused) return;
 
-    // Tick interval depends on simulation speed (base 10 seconds)
     const intervalMs = Math.max(1000, 10000 / simulationConfig.speed);
 
     const timer = setInterval(() => {
@@ -33,19 +31,21 @@ export const MobileShell: React.FC = () => {
     return () => clearInterval(timer);
   }, [simulationConfig.isPaused, simulationConfig.speed, triggerSimulationTick]);
 
+  // Keyboard shortcut Ctrl + Shift + D to toggle debug drawer for dev mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        e.preventDefault();
+        toggleDebugDrawer();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleDebugDrawer]);
+
   return (
     <div className="app-viewport">
-      {/* Discreet Developer Debug Trigger in Top Right Corner */}
-      <button 
-        onClick={toggleDebugDrawer}
-        style={styles.debugTrigger}
-        title="Buka Inspector Simulasi"
-        aria-label="Inspector Simulasi"
-      >
-        <Cpu size={14} color="var(--text-muted)" />
-      </button>
-
-      {/* Main Tab Screen Content */}
+      {/* Main Tab Content Container with bottom padding for fixed navbar */}
       <div style={styles.mainContent}>
         {activeTab === 'HOME' && <FeedView />}
         {activeTab === 'DISCOVER' && <DiscoverView />}
@@ -54,7 +54,7 @@ export const MobileShell: React.FC = () => {
         {activeTab === 'PROFILE' && <ProfileView />}
       </div>
 
-      {/* Bottom Navbar */}
+      {/* Fixed Bottom Navbar */}
       <Navbar />
 
       {/* Overlays */}
@@ -68,20 +68,7 @@ const styles: Record<string, React.CSSProperties> = {
   mainContent: {
     flex: 1,
     overflow: 'hidden',
-    position: 'relative'
-  },
-  debugTrigger: {
-    position: 'absolute',
-    top: '14px',
-    right: '14px',
-    zIndex: 50,
-    opacity: 0.6,
-    padding: '4px',
-    borderRadius: '50%',
-    backgroundColor: 'var(--bg-secondary)',
-    border: '1px solid var(--border-color)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
+    position: 'relative',
+    paddingBottom: '0px'
   }
 };

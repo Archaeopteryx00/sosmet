@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
 import { Post } from '../../types/sosmet';
 import { useSosmetStore } from '../../store/sosmetStore';
-import { getImageFromStorage } from '../../services/imageStorage';
+import { SosmetImage } from '../common/SosmetImage';
 
 interface PostCardProps {
   post: Post;
@@ -13,22 +13,6 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [showHeartPop, setShowHeartPop] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [isCommentsExpanded, setIsCommentsExpanded] = useState(false);
-  const [displayImage, setDisplayImage] = useState<string>(post.imageUrl);
-
-  // Resolve IndexedDB stored image if needed
-  useEffect(() => {
-    let isMounted = true;
-    if (post.imageUrl && post.imageUrl.startsWith('img_id_')) {
-      getImageFromStorage(post.imageUrl).then((resolved) => {
-        if (isMounted && resolved) {
-          setDisplayImage(resolved);
-        }
-      });
-    } else {
-      setDisplayImage(post.imageUrl);
-    }
-    return () => { isMounted = false; };
-  }, [post.imageUrl]);
 
   const isLikedByMe = post.likedBy.includes(userProfile.id);
 
@@ -74,8 +58,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.userInfo} onClick={handleUserClick}>
-          <div className="avatar-ring-none" style={{ width: 36, height: 36 }}>
-            <img src={post.userAvatar} alt={post.username} className="avatar-img" />
+          <div className="avatar-ring-none" style={{ width: 36, height: 36, overflow: 'hidden', borderRadius: '50%' }}>
+            <SosmetImage src={post.userAvatar} alt={post.username} className="avatar-img" />
           </div>
           <div style={styles.userText}>
             <span style={styles.username}>{post.username}</span>
@@ -87,9 +71,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
         </button>
       </header>
 
-      {/* Main Image */}
+      {/* Main Image using SosmetImage */}
       <div style={styles.imageContainer} onDoubleClick={handleImageDoubleClick}>
-        <img src={displayImage} alt={post.caption} style={styles.image} loading="lazy" />
+        <SosmetImage src={post.imageUrl} alt={post.caption || 'Post image'} style={styles.image} />
         {showHeartPop && (
           <div style={styles.heartPopOverlay}>
             <Heart size={80} fill="#ffffff" color="#ffffff" className="heart-pop" />
@@ -142,10 +126,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
       </div>
 
       {/* Caption */}
-      <div style={styles.captionSection}>
-        <span style={styles.captionUsername} onClick={handleUserClick}>{post.username}</span>
-        <span style={styles.captionText}>{post.caption}</span>
-      </div>
+      {post.caption && (
+        <div style={styles.captionSection}>
+          <span style={styles.captionUsername} onClick={handleUserClick}>{post.username}</span>
+          <span style={styles.captionText}>{post.caption}</span>
+        </div>
+      )}
 
       {/* Comments Section */}
       <div style={styles.commentsSection}>
@@ -230,7 +216,7 @@ const styles: Record<string, React.CSSProperties> = {
   imageContainer: {
     position: 'relative',
     width: '100%',
-    backgroundColor: '#111111',
+    backgroundColor: '#e4e4e7',
     userSelect: 'none',
     cursor: 'pointer'
   },
@@ -246,7 +232,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.15)'
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    zIndex: 5
   },
   actionsBar: {
     display: 'flex',
